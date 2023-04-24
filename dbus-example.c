@@ -327,7 +327,8 @@ void receive()
       dbus_error_free(&err);
    }
    if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) {
-      exit(1);
+      printf("Not primary owner\n");
+      //exit(1);
    }
 
    // add a rule for which messages we want to see
