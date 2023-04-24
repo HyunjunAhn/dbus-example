@@ -1,0 +1,29 @@
+# Object files
+*.o
+*.ko
+
+.idea
+
+# Libraries
+*.lib
+*.a
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# IDE
+*.kdev
+
+kdev4
+*.kdev4
+*.py~
+
+dbus-example
