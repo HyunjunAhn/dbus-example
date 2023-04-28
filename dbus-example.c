@@ -26,6 +26,8 @@ void sendsignal(char* sigvalue)
    DBusError err;
    int ret;
    dbus_uint32_t serial = 0;
+   char buf[100];
+   char* pBuf = buf;
 
    printf("Sending signal with value %s\n", sigvalue);
 
@@ -52,40 +54,45 @@ void sendsignal(char* sigvalue)
       exit(1);
    }
 
-   // create a signal & check for errors
-   msg = dbus_message_new_signal("/test/signal/Object", // object name of the signal
-                                 "test.signal.Type", // interface name of the signal
-                                 "Test"); // name of the signal
-   if (NULL == msg)
+   for(int j=0;j<5;j++)
    {
-      fprintf(stderr, "Message Null\n");
-      exit(1);
+      // create a signal & check for errors
+      msg = dbus_message_new_signal("/test/signal/Object", // object name of the signal
+                                    "test.signal.Type", // interface name of the signal
+                                    "Test"); // name of the signal
+      if (NULL == msg)
+      {
+         fprintf(stderr, "Message Null\n");
+         exit(1);
+      }
+
+      sprintf(buf, "%s_%d", sigvalue, j);
+      // append arguments onto signal
+      dbus_message_iter_init_append(msg, &args);
+      if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &pBuf)) {
+         fprintf(stderr, "Out Of Memory!\n");
+         exit(1);
+      }
+
+      // send the message and flush the connection
+      if (!dbus_connection_send(conn, msg, &serial)) {
+         fprintf(stderr, "Out Of Memory!\n");
+         exit(1);
+      }
+      dbus_connection_flush(conn);
+
+      printf("Signal Sent with value %s\n", buf);
+
+      // free the message
+      dbus_message_unref(msg);
+      usleep(100000);
    }
-
-   // append arguments onto signal
-   dbus_message_iter_init_append(msg, &args);
-   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &sigvalue)) {
-      fprintf(stderr, "Out Of Memory!\n");
-      exit(1);
-   }
-
-   // send the message and flush the connection
-   if (!dbus_connection_send(conn, msg, &serial)) {
-      fprintf(stderr, "Out Of Memory!\n");
-      exit(1);
-   }
-   dbus_connection_flush(conn);
-
-   printf("Signal Sent\n");
-
-   // free the message
-   dbus_message_unref(msg);
 }
 
 /**
  * Call a method on a remote object
  */
-void query(char* param)
+void query(char* sendMsg)
 {
    DBusMessage* msg;
    DBusMessageIter args;
@@ -95,8 +102,9 @@ void query(char* param)
    int ret;
    bool stat;
    dbus_uint32_t level;
+   char* rcvdMsg = "";
 
-   printf("Calling remote method with %s\n", param);
+   printf("[%s] message sent.\n", sendMsg);
 
    // initialiset the errors
    dbus_error_init(&err);
@@ -133,13 +141,14 @@ void query(char* param)
 
    // append arguments
    dbus_message_iter_init_append(msg, &args);
-   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &param)) {
+   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &sendMsg)) {
       fprintf(stderr, "Out Of Memory!\n");
       exit(1);
    }
 
    // send message and get a handle for a reply
-   if (!dbus_connection_send_with_reply (conn, msg, &pending, -1)) { // -1 is default timeout
+   //if (!dbus_connection_send_with_reply (conn, msg, &pending, -1)) { // -1 is default timeout
+   if (!dbus_connection_send_with_reply (conn, msg, &pending, 1500)) { // -1 is default timeout
       fprintf(stderr, "Out Of Memory!\n");
       exit(1);
    }
@@ -148,8 +157,6 @@ void query(char* param)
       exit(1);
    }
    dbus_connection_flush(conn);
-
-   printf("Request Sent\n");
 
    // free message
    dbus_message_unref(msg);
@@ -167,6 +174,7 @@ void query(char* param)
    dbus_pending_call_unref(pending);
 
    // read the parameters
+   /*
    if (!dbus_message_iter_init(msg, &args))
       fprintf(stderr, "Message has no arguments!\n");
    else if (DBUS_TYPE_BOOLEAN != dbus_message_iter_get_arg_type(&args))
@@ -182,6 +190,16 @@ void query(char* param)
       dbus_message_iter_get_basic(&args, &level);
 
    printf("Got Reply: %d, %d\n", stat, level);
+   */
+
+   if (!dbus_message_iter_init(msg, &args))
+      fprintf(stderr, "Message has no arguments!\n");
+   else if (DBUS_TYPE_STRING != dbus_message_iter_get_arg_type(&args))
+      fprintf(stderr, "Argument is not string!\n");
+   else
+      dbus_message_iter_get_basic(&args, &rcvdMsg);
+   printf("Got Reply [%s]\n", rcvdMsg);
+
 
    // free reply
    dbus_message_unref(msg);
@@ -194,7 +212,10 @@ void reply_to_method_call(DBusMessage* msg, DBusConnection* conn)
    bool stat = true;
    dbus_uint32_t level = 21614;
    dbus_uint32_t serial = 0;
-   char* param = "";
+   //char* param = "";
+   char* recMsg = "";
+   char repMsg[100] = "RPLY_MSG_FOR_";
+   char *pRepMsg = repMsg;
 
    // read the arguments
    if (!dbus_message_iter_init(msg, &args))
@@ -202,20 +223,27 @@ void reply_to_method_call(DBusMessage* msg, DBusConnection* conn)
    else if (DBUS_TYPE_STRING != dbus_message_iter_get_arg_type(&args))
       fprintf(stderr, "Argument is not string!\n");
    else
-      dbus_message_iter_get_basic(&args, &param);
+      dbus_message_iter_get_basic(&args, &recMsg);
 
-   printf("Method called with %s\n", param);
+   printf("[%s] message received!\n", recMsg);
 
    // create a reply from the message
    reply = dbus_message_new_method_return(msg);
 
    // add the arguments to the reply
    dbus_message_iter_init_append(reply, &args);
+   /*
    if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_BOOLEAN, &stat)) {
       fprintf(stderr, "Out Of Memory!\n");
       exit(1);
    }
    if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_UINT32, &level)) {
+      fprintf(stderr, "Out Of Memory!\n");
+      exit(1);
+   }
+   */
+   strcat(repMsg, recMsg);
+   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &pRepMsg)) {
       fprintf(stderr, "Out Of Memory!\n");
       exit(1);
    }
@@ -225,6 +253,9 @@ void reply_to_method_call(DBusMessage* msg, DBusConnection* conn)
       fprintf(stderr, "Out Of Memory!\n");
       exit(1);
    }
+
+   printf("Reply to [%s] with [%s]\n", recMsg, repMsg);
+
    dbus_connection_flush(conn);
 
    // free the reply
@@ -285,7 +316,10 @@ void listen()
 
       // check this is a method call for the right interface & method
       if (dbus_message_is_method_call(msg, "test.method.Type", "Method"))
+      {
+         usleep(1000000); //For pending test
          reply_to_method_call(msg, conn);
+      }
 
       // free the message
       dbus_message_unref(msg);
