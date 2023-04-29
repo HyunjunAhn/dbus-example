@@ -388,7 +388,8 @@ void receive()
       }
 
       // check if the message is a signal from the correct interface and with the correct name
-      if (dbus_message_is_signal(msg, "test.signal.Type", "Test")) {
+      if ((dbus_message_is_signal(msg, "test.signal.Type", "Test"))
+          || (dbus_message_is_signal(msg, "test.signal.Type", "Tick"))) {
 
          // read the parameters
          if (!dbus_message_iter_init(msg, &args))
@@ -398,7 +399,7 @@ void receive()
          else
             dbus_message_iter_get_basic(&args, &sigvalue);
 
-         printf("Got Signal with value %s\n", sigvalue);
+         printf("Got Signal with value \'%s\'\n", sigvalue);
       }
 
       // free the message
