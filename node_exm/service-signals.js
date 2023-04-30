@@ -67,7 +67,8 @@ function proceed() {
       Tick: ['s', 'time'], // second argument is the name of the output parameters (for introspection)
       // Defines a signal whose name is 'Rand' and whose ouput param is: int32 (i)
       //Rand: ['i', 'random_number']
-      Test: ['s', 'random_number']
+      Test: ['s', 'test_str'],
+      Num: ['i', 'random_number']
     },
     // No methods nor properties for this example
     methods: {},
@@ -131,9 +132,16 @@ function proceed() {
     var proba = Math.round(Math.random() * 100);
 
     if (proba > 70) {
-      var randomNumber = Math.round(Math.random() * 100);
-      //iface.emit('Rand', randomNumber);
       iface.emit('Test', 'TEST_STR');
     }
   }, 2000);
+
+  setInterval(() => {
+    var proba = Math.round(Math.random() * 100);
+
+    if (proba > 30) {
+      var randomNumber = Math.round(Math.random() * 100);
+      iface.emit('Num', randomNumber);
+    }
+  }, 3000);
 }
