@@ -6,7 +6,7 @@ const inspect = require('util').inspect;
 */
 
 //const serviceName = 'com.dbus.native.signals'; // our DBus service name
-const serviceName = 'test.signal.Type';
+const serviceName = 'test.signal0';
 /*
 	The interface under which we will expose our signals (chose to be the same as the service name, but we can
 	choose whatever name we want, provided it respects the rules, see DBus naming documentation)
@@ -67,7 +67,7 @@ function proceed() {
       Tick: ['s', 'time'], // second argument is the name of the output parameters (for introspection)
       // Defines a signal whose name is 'Rand' and whose ouput param is: int32 (i)
       //Rand: ['i', 'random_number']
-      Test: ['s', 'test_str'],
+      Str: ['s', 'test_str'],
       Num: ['i', 'random_number']
     },
     // No methods nor properties for this example
@@ -84,9 +84,9 @@ function proceed() {
 			actual signal OUTPUT values (a signal doesn't take input parameters).
 
 			Here we use the neat ES6 syntax, the spread operator (...), this basically says "bind the first argument in
-			the variable 'signalName' and all others in 'signalOutputParams'"
+			the variable 'signalName' and all others in 'signalOutpudbus_session_init_paramss'"
 		*/
-    emit: function(signalName, ...signalOutputParams) {
+    emit: function(signalName, ...signalOutpudbus_session_init_paramss) {
       /*
 				Now we are in the body of the 'emit()' function of the interface.
 				Just to be clear: you dont NEED to put ANYTHING in this body. When you call 'bus.exportInterface()',
@@ -103,7 +103,7 @@ function proceed() {
 
       console.log(
         `Signal '${signalName}' emitted with values: ${inspect(
-          signalOutputParams
+          signalOutpudbus_session_init_paramss
         )}`
       );
     }
@@ -132,7 +132,7 @@ function proceed() {
     var proba = Math.round(Math.random() * 100);
 
     if (proba > 70) {
-      iface.emit('Test', 'TEST_STR');
+      iface.emit('Str', 'TEST_STR');
     }
   }, 2000);
 

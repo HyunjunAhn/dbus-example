@@ -14,157 +14,135 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
-#define SIGNAL_IFACE "test.signal.Type"
+//#define SIGNAL_OBJ0 "/test/signal/Object0"
+//#define SIGNAL_OBJ1 "/test/signal/Object1"
+#define SIGNAL_OBJ0 "/CMD00"
+#define SIGNAL_OBJ1 "/CMD01"
+#define SIGNAL_IFACE0 "test.signal0"
+#define SIGNAL_IFACE1 "test.signal1"
+#define SIGNAL_SOURCE0 "test.signal0.source"
+#define SIGNAL_SOURCE1 "test.signal1.source"
+#define SIGNAL_SINK0 "test.signal0.sink"
+#define SIGNAL_SINK1 "test.signal1.sink"
+
 #define METHOD_IFACE "test.method.Type"
 
-#define SIGNAL_MEMBER0 "Test"
+#define SIGNAL_MEMBER0 "Str"
 #define SIGNAL_MEMBER1 "Tick"
 #define SIGNAL_MEMBER2 "Num"
+
+typedef struct 
+{
+   DBusError err;
+   DBusConnection* conn;
+   char iface[100];
+   char sigName[100];
+} dbus_session_init_params;
+
 /**
  * Connect to the DBUS bus and send a broadcast signal
  */
-void sendsignalStr(char* sigvalue)
+void sendsignalStr(dbus_session_init_params *dbus, char *obj, char* sigvalue)
 {
    DBusMessage* msg;
    DBusMessageIter args;
-   DBusConnection* conn;
-   DBusError err;
-   int ret;
+   DBusConnection* conn = dbus->conn;
    dbus_uint32_t serial = 0;
-   char buf[100];
+   char buf[1000];
    char* pBuf = buf;
 
    printf("Sending signal with value %s\n", sigvalue);
 
-   // initialise the error value
-   dbus_error_init(&err);
-
-   // connect to the DBUS system bus, and check for errors
-   conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
-   if (dbus_error_is_set(&err)) {
-      fprintf(stderr, "Connection Error (%s)\n", err.message);
-      dbus_error_free(&err);
-   }
-   if (NULL == conn) {
-      exit(1);
-   }
-
-   // register our name on the bus, and check for errors
-   ret = dbus_bus_request_name(conn, "test.signal.source", DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
-   if (dbus_error_is_set(&err)) {
-      fprintf(stderr, "Name Error (%s)\n", err.message);
-      dbus_error_free(&err);
-   }
-   if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) {
-      exit(1);
-   }
-
-   for(int j=0;j<5;j++)
+   // create a signal & check for errors
+   msg = dbus_message_new_signal(obj, // object name of the signal
+                                 dbus->iface, // interface name of the signal
+                                 SIGNAL_MEMBER0); // name of the signal
+   if (NULL == msg)
    {
-      // create a signal & check for errors
-      msg = dbus_message_new_signal("/test/signal/Object", // object name of the signal
-                                    SIGNAL_IFACE, // interface name of the signal
-                                    SIGNAL_MEMBER0); // name of the signal
-      if (NULL == msg)
-      {
-         fprintf(stderr, "Message Null\n");
-         exit(1);
-      }
-
-      sprintf(buf, "%s_%d", sigvalue, j);
-      // append arguments onto signal
-      dbus_message_iter_init_append(msg, &args);
-      if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &pBuf)) {
-         fprintf(stderr, "Out Of Memory!\n");
-         exit(1);
-      }
-
-      // send the message and flush the connection
-      if (!dbus_connection_send(conn, msg, &serial)) {
-         fprintf(stderr, "Out Of Memory!\n");
-         exit(1);
-      }
-      dbus_connection_flush(conn);
-
-      printf("Signal Sent with value %s\n", buf);
-
-      // free the message
-      dbus_message_unref(msg);
-      usleep(100000);
+      fprintf(stderr, "Message Null\n");
+      exit(1);
    }
+
+   // append arguments onto signal
+   dbus_message_iter_init_append(msg, &args);
+   sprintf(buf, "%s", sigvalue);
+   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &pBuf)) {
+      fprintf(stderr, "Out Of Memory!\n");
+      exit(1);
+   }
+
+   int tmp = 65536;
+   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_INT32, &tmp)) {
+      fprintf(stderr, "Out Of Memory!\n");
+      exit(1);
+   }
+
+   char tmpStr[20] = "Test string!\0";
+   char *pTmpStr = tmpStr;
+   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &pTmpStr)) {
+      fprintf(stderr, "Out Of Memory!\n");
+      exit(1);
+   }
+
+   // send the message and flush the connection
+   if (!dbus_connection_send(conn, msg, &serial)) {
+      fprintf(stderr, "Out Of Memory!\n");
+      exit(1);
+   }
+   dbus_connection_flush(conn);
+   printf("Signal Sent with value %s (path:%s, iface:%s, member:%s)\n", buf, 
+   dbus_message_get_path(msg), dbus_message_get_interface(msg), 
+   dbus_message_get_member(msg));
+
+   // free the message
+   dbus_message_unref(msg);
+   usleep(100000);
 }
 
-void sendsignalInt(int sigvalue)
+void sendsignalInt(dbus_session_init_params *dbus, char *obj, int sigvalue)
 {
    DBusMessage* msg;
    DBusMessageIter args;
-   DBusConnection* conn;
-   DBusError err;
-   int ret;
+   DBusConnection* conn = dbus->conn;
    dbus_uint32_t serial = 0;
    int buf = 0;
-   char* pBuf = &buf;
+   int* pBuf = &buf;
 
    printf("Sending signal with value %d\n", sigvalue);
 
-   // initialise the error value
-   dbus_error_init(&err);
-
-   // connect to the DBUS system bus, and check for errors
-   conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
-   if (dbus_error_is_set(&err)) {
-      fprintf(stderr, "Connection Error (%s)\n", err.message);
-      dbus_error_free(&err);
-   }
-   if (NULL == conn) {
-      exit(1);
-   }
-
-   // register our name on the bus, and check for errors
-   ret = dbus_bus_request_name(conn, "test.signal.source", DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
-   if (dbus_error_is_set(&err)) {
-      fprintf(stderr, "Name Error (%s)\n", err.message);
-      dbus_error_free(&err);
-   }
-   if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) {
-      exit(1);
-   }
-
-   for(int j=0;j<5;j++)
+   // create a signal & check for errors
+   msg = dbus_message_new_signal(obj, // object name of the signal
+                                 dbus->iface, // interface name of the signal
+                                 SIGNAL_MEMBER2); // name of the signal
+   if (NULL == msg)
    {
-      // create a signal & check for errors
-      msg = dbus_message_new_signal("/test/signal/Object", // object name of the signal
-                                    SIGNAL_IFACE, // interface name of the signal
-                                    SIGNAL_MEMBER2); // name of the signal
-      if (NULL == msg)
-      {
-         fprintf(stderr, "Message Null\n");
-         exit(1);
-      }
-
-      buf = sigvalue*10 + j;
-      // append arguments onto signal
-      dbus_message_iter_init_append(msg, &args);
-      if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_INT32, pBuf)) {
-         fprintf(stderr, "Out Of Memory!\n");
-         exit(1);
-      }
-
-      // send the message and flush the connection
-      if (!dbus_connection_send(conn, msg, &serial)) {
-         fprintf(stderr, "Out Of Memory!\n");
-         exit(1);
-      }
-      dbus_connection_flush(conn);
-      printf("Signal Sent with value %d (path:%s, iface:%s, member:%s)\n", buf, 
-      dbus_message_get_path(msg), dbus_message_get_interface(msg), 
-      dbus_message_get_member(msg));
-
-      // free the message
-      dbus_message_unref(msg);
-      usleep(100000);
+      fprintf(stderr, "Message Null\n");
+      exit(1);
    }
+
+   buf = sigvalue;
+   // append arguments onto signal
+   dbus_message_iter_init_append(msg, &args);
+   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_INT32, pBuf)) {
+      fprintf(stderr, "Out Of Memory!\n");
+      exit(1);
+   }
+
+   // send the message and flush the connection
+   if (!dbus_connection_send(conn, msg, &serial)) {
+      fprintf(stderr, "Out Of Memory!\n");
+      exit(1);
+   }
+   dbus_connection_flush(conn);
+   printf("Signal Sent with value %d (path:%s, iface:%s, member:%s)\n", buf, 
+   dbus_message_get_path(msg), dbus_message_get_interface(msg), 
+   dbus_message_get_member(msg));
+
+   // free the message
+   dbus_message_unref(msg);
+   usleep(100000);
 }
 
 
@@ -180,7 +158,6 @@ void query(char* sendMsg)
    DBusPendingCall* pending;
    int ret;
    bool stat;
-   dbus_uint32_t level;
    char* rcvdMsg = "";
 
    printf("[%s] message sent.\n", sendMsg);
@@ -210,7 +187,7 @@ void query(char* sendMsg)
 
    // create a new method call and check for errors
    msg = dbus_message_new_method_call("test.method.server", // target for the method call
-                                      "/test/method/Object", // object to call on
+                                      SIGNAL_OBJ0, // object to call on
                                       METHOD_IFACE, // interface to call on
                                       "Method"); // method name
    if (NULL == msg) {
@@ -406,121 +383,215 @@ void listen()
 
 }
 
-/**
- * Listens for signals on the bus
- */
-void receive()
+#define STR 0
+#define NUM 1
+int receiveRoutin(dbus_session_init_params *dbus)
 {
+   DBusConnection* conn = dbus->conn;
    DBusMessage* msg;
    DBusMessageIter args;
-   DBusConnection* conn;
-   DBusError err;
-   int ret;
    char* sigvalue_str;
    int sigvalue_int; 
+   int ret = -1;
+   char tmpMember[100];
+   int type = -1;
+   char *iface = dbus->iface;
 
-   printf("Listening for signals\n");
+   // non blocking read of the next available message
+   dbus_connection_read_write(conn, 0);
+   msg = dbus_connection_pop_message(conn);
+
+   // loop again if we haven't read a message
+   if (NULL != msg) 
+   {
+      if (dbus_message_is_signal(msg, iface, SIGNAL_MEMBER0))
+      {
+         strcpy(tmpMember, SIGNAL_MEMBER0);
+         type = STR;
+      }
+      else if (dbus_message_is_signal(msg, iface, SIGNAL_MEMBER1))
+      {
+         strcpy(tmpMember, SIGNAL_MEMBER1);
+         type = STR;
+      }
+      else if (dbus_message_is_signal(msg, iface, SIGNAL_MEMBER2))
+      {
+         strcpy(tmpMember, SIGNAL_MEMBER2);
+         type = NUM;
+      }
+
+
+      if(type >= 0)
+      {
+         printf("%s\n", dbus_message_get_path(msg));
+
+         // check if the message is a signal from the correct interface and with the correct name
+         // read the parameters
+         if (!dbus_message_iter_init(msg, &args))
+            fprintf(stderr, "Message Has No Parameters\n");
+         else
+         {
+            for(int i=0; i<3; i++)
+            {
+               if (DBUS_TYPE_INT32 == dbus_message_iter_get_arg_type(&args))
+               {
+                  dbus_message_iter_get_basic(&args, &sigvalue_int);
+                  printf("Got Signal with value %d with %s-%s\n", sigvalue_int, iface, tmpMember);
+               }
+               else if (DBUS_TYPE_STRING == dbus_message_iter_get_arg_type(&args))
+               {
+                  dbus_message_iter_get_basic(&args, &sigvalue_str);
+                  printf("Got Signal with value \'%s\' with %s-%s\n", sigvalue_str, iface, tmpMember);
+               }
+               else
+               {
+                  fprintf(stderr, "Unknown type\n");
+               }
+               dbus_message_iter_next(&args);
+            }
+         }
+
+         // free the message
+         dbus_message_unref(msg);
+      }
+      ret = 0;
+   }
+   return ret;
+}
+
+
+void dbusInit(dbus_session_init_params *dbus)
+{
+   DBusError *err = &dbus->err;
+   int ret;
+   DBusConnection** conn = &dbus->conn;
+   char *sigName = dbus->sigName;
 
    // initialise the errors
-   dbus_error_init(&err);
-
+   dbus_error_init(err);
    // connect to the bus and check for errors
-   conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
-   if (dbus_error_is_set(&err)) {
-      fprintf(stderr, "Connection Error (%s)\n", err.message);
-      dbus_error_free(&err);
+   //*conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
+   *conn = dbus_bus_get_private(DBUS_BUS_SESSION, err);
+   if (dbus_error_is_set(err)) {
+      fprintf(stderr, "Connection Error (%s)\n", err->message);
+      dbus_error_free(err);
    }
-   if (NULL == conn) {
+   if (NULL == *conn) {
+      printf("conn == NULL!\n");
       exit(1);
    }
 
    // request our name on the bus and check for errors
-   ret = dbus_bus_request_name(conn, "test.signal.sink", DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
-   if (dbus_error_is_set(&err)) {
-      fprintf(stderr, "Name Error (%s)\n", err.message);
-      dbus_error_free(&err);
+   ret = dbus_bus_request_name(*conn, sigName, DBUS_NAME_FLAG_REPLACE_EXISTING , err);
+   if (dbus_error_is_set(err)) {
+      fprintf(stderr, "Name Error (%s)\n", err->message);
+      dbus_error_free(err);
    }
    if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) {
       printf("Not primary owner\n");
       //exit(1);
    }
+   printf("Dbus Init - %s (conn:%p)\n", sigName, *conn);
+}
+
+void dbusRecvIfaceSet(dbus_session_init_params *dbus)
+{
+   DBusError *err = &dbus->err;
+   char tmp[100];
+   char *iface = dbus->iface;
+   DBusConnection** conn = &dbus->conn;
 
    // add a rule for which messages we want to see
-   char tmp[100];
-   sprintf(tmp, "type='signal',interface=\'%s\'", SIGNAL_IFACE);
-   dbus_bus_add_match(conn, tmp, &err); // see signals from the given interface
-   dbus_connection_flush(conn);
-   if (dbus_error_is_set(&err)) {
-      fprintf(stderr, "Match Error (%s)\n", err.message);
+   sprintf(tmp, "type='signal',interface=\'%s\'", iface);
+   dbus_bus_add_match(*conn, tmp, err); // see signals from the given interface
+   dbus_connection_flush(*conn);
+   if (dbus_error_is_set(err)) {
+      fprintf(stderr, "Match Error, iface:%s (%s)\n", iface, err->message);
       exit(1);
    }
-   printf("Match rule sent\n");
+}
+
+/**
+ * Listens for signals on the bus
+ */
+void* receive(void *arg)
+{
+   int msg=-1;
+   dbus_session_init_params *dbus = (dbus_session_init_params *)arg;
 
    // loop listening for signals being emmitted
    while (true) {
-
-      // non blocking read of the next available message
-      dbus_connection_read_write(conn, 0);
-      msg = dbus_connection_pop_message(conn);
-
-      // loop again if we haven't read a message
-      if (NULL == msg) {
-         usleep(10000);
-         continue;
-      }
-
-      // check if the message is a signal from the correct interface and with the correct name
-      if ((dbus_message_is_signal(msg, SIGNAL_IFACE, SIGNAL_MEMBER0))
-          || (dbus_message_is_signal(msg, SIGNAL_IFACE, SIGNAL_MEMBER1))) {
-
-         // read the parameters
-         if (!dbus_message_iter_init(msg, &args))
-            fprintf(stderr, "Message Has No Parameters\n");
-         else if (DBUS_TYPE_STRING != dbus_message_iter_get_arg_type(&args))
-            fprintf(stderr, "Argument is not string!\n");
-         else
-            dbus_message_iter_get_basic(&args, &sigvalue_str);
-
-         printf("Got Signal with value \'%s\'\n", sigvalue_str);
-      }
-      else if (dbus_message_is_signal(msg, SIGNAL_IFACE, SIGNAL_MEMBER2))
+      msg = receiveRoutin(dbus);
+      if(msg < 0) 
       {
-         // read the parameters
-         if (!dbus_message_iter_init(msg, &args))
-            fprintf(stderr, "Message Has No Parameters\n");
-         else if (DBUS_TYPE_INT32 != dbus_message_iter_get_arg_type(&args))
-            fprintf(stderr, "Argument is not integer!\n");
-         else
-            dbus_message_iter_get_basic(&args, &sigvalue_int);
-
-         printf("Got Signal with value %d\n", sigvalue_int);
+         usleep(10000);
       }
-
-      // free the message
-      dbus_message_unref(msg);
    }
 }
 
 int main(int argc, char** argv)
 {
+   pthread_t tid;
+   dbus_session_init_params dbus0_send = (dbus_session_init_params){{0}, NULL, SIGNAL_IFACE0, SIGNAL_SOURCE0};
+   dbus_session_init_params dbus0_recv = (dbus_session_init_params){{0}, NULL, SIGNAL_IFACE0, SIGNAL_SINK0};
+   dbus_session_init_params dbus1_send = (dbus_session_init_params){{0}, NULL, SIGNAL_IFACE1, SIGNAL_SOURCE1};
+   dbus_session_init_params dbus1_recv = (dbus_session_init_params){{0}, NULL, SIGNAL_IFACE1, SIGNAL_SINK1};
+
    if (2 > argc) {
       printf ("Syntax: dbus-example [sendstr|sendint|receive|listen|query] [<param>]\n");
       return 1;
    }
    char* param = "no param";
-   if (3 >= argc && NULL != argv[2]) param = argv[2];
-   if (0 == strcmp(argv[1], "sendstr"))
-      sendsignalStr(param);
-   else if (0 == strcmp(argv[1], "sendint"))
-      sendsignalInt(atoi(param));
+   if (4 <= argc && NULL != argv[3]) param = argv[3];
+   if (4 <= argc)
+   {
+      dbusInit(&dbus0_send);
+      dbusInit(&dbus1_send);
+      if (0 == strcmp(argv[2], "sendstr"))
+      {
+         if(atoi(argv[1]) == 0)
+         {
+            sendsignalStr(&dbus0_send , SIGNAL_OBJ0, param);
+            //sendsignalStr(&dbus0_send , SIGNAL_OBJ1, param);
+         }
+         else if(atoi(argv[1]) == 1)
+         {
+            sendsignalStr(&dbus1_send , SIGNAL_OBJ0, param);
+            //sendsignalStr(&dbus1_send , SIGNAL_OBJ1, param);
+         }
+      }
+      else if(0 == strcmp(argv[2], "sendint"))
+      {
+         if(atoi(argv[1]) == 0)
+         {
+            sendsignalInt(&dbus0_send , SIGNAL_OBJ0, atoi(param));
+         }
+         else if(atoi(argv[1]) == 1)
+         {
+            sendsignalInt(&dbus1_send , SIGNAL_OBJ0, atoi(param));
+         }
+      }
+   }
    else if (0 == strcmp(argv[1], "receive"))
-      receive();
+   {
+      dbusInit(&dbus0_recv);
+      dbusInit(&dbus1_recv);
+      dbusRecvIfaceSet(&dbus0_recv);
+      dbusRecvIfaceSet(&dbus1_recv);
+   
+      pthread_create(&tid, NULL, receive, (void *)&dbus0_recv);
+      pthread_create(&tid, NULL, receive, (void *)&dbus1_recv);
+      while (1)
+      {
+         usleep(10000);
+      }
+   }
    else if (0 == strcmp(argv[1], "listen"))
       listen();
    else if (0 == strcmp(argv[1], "query"))
       query(param);
    else {
-      printf ("Syntax: dbus-example [send|receive|listen|query] [<param>]\n");
+      printf ("Syntax: dbus-example [sendstr|sendint|receive|listen|query] [<param>]\n");
       return 1;
    }
    return 0;
