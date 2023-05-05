@@ -520,6 +520,12 @@ void* receive(void *arg)
    }
 }
 
+void usage()
+{
+   printf ("Syntax: dbus-example [iface_num] [sendmsg000|sendmsg001] [<param>]\n");
+   printf ("        dbus-example [receive|listen|query] [<param>]\n");
+}
+
 int main(int argc, char** argv)
 {
    pthread_t tid;
@@ -528,14 +534,17 @@ int main(int argc, char** argv)
    dbus_session_init_params dbus1_send = (dbus_session_init_params){{0}, NULL, SIGNAL_IFACE1, SIGNAL_SOURCE1};
    dbus_session_init_params dbus1_recv = (dbus_session_init_params){{0}, NULL, SIGNAL_IFACE1, SIGNAL_SINK1};
 
-   if (2 > argc) {
-      printf ("Syntax: dbus-example [iface_num] [sendmsg000|sendmsg001] [<param>]\n");
-      printf ("        dbus-example [receive|listen|query] [<param>]\n");
-      return 1;
-   }
    char* param = "no param";
    if (4 <= argc && NULL != argv[3]) param = argv[3];
    else if (3 <= argc && NULL != argv[2]) param = argv[2];
+   else if (2 > argc)
+   {
+      usage();
+   }
+   else
+   {
+      /* No operation */
+   }
 
    if (4 <= argc)
    {
@@ -569,8 +578,7 @@ int main(int argc, char** argv)
       }
       else
       {
-         printf ("Syntax: dbus-example [iface_num] [sendmsg000|sendmsg001] [<param>]\n");
-         printf ("        dbus-example [receive|listen|query] [<param>]\n");
+         usage();
       }
    }
    else if (0 == strcmp(argv[1], "receive"))
@@ -591,10 +599,9 @@ int main(int argc, char** argv)
       listen();
    else if (0 == strcmp(argv[1], "query"))
       query(param);
-   else {
-      printf ("Syntax: dbus-example [iface_num] [sendmsg000|sendmsg001] [<param>]\n");
-      printf ("        dbus-example [receive|listen|query] [<param>]\n");
-      return 1;
+   else 
+   {
+      usage();
    }
    return 0;
 }
