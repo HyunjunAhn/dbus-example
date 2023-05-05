@@ -6,7 +6,7 @@ const inspect = require('util').inspect;
 */
 
 //const serviceName = 'com.dbus.native.signals'; // our DBus service name
-const serviceName = 'test.signal0';
+const serviceName = 'test.iface0';
 /*
 	The interface under which we will expose our signals (chose to be the same as the service name, but we can
 	choose whatever name we want, provided it respects the rules, see DBus naming documentation)
@@ -64,11 +64,11 @@ function proceed() {
     name: interfaceName,
     signals: {
       // Defines a signal whose name is 'Tick' and whose output param is: string (s)
-      Tick: ['s', 'time'], // second argument is the name of the output parameters (for introspection)
       // Defines a signal whose name is 'Rand' and whose ouput param is: int32 (i)
       //Rand: ['i', 'random_number']
-      Str: ['s', 'test_str'],
-      Num: ['i', 'random_number']
+      msg000: ['s', 'test_str'],
+      msg001: ['i', 'random_number'],
+      msg002: ['s', 'time'] // second argument is the name of the output parameters (for introspection)
     },
     // No methods nor properties for this example
     methods: {},
@@ -120,7 +120,7 @@ function proceed() {
 		actual output values of the signal.
 	*/
   setInterval(() => {
-    iface.emit('Tick', new Date().toString());
+    iface.emit('msg002', new Date().toString());
   }, 10e3);
 
   /*
@@ -132,7 +132,7 @@ function proceed() {
     var proba = Math.round(Math.random() * 100);
 
     if (proba > 70) {
-      iface.emit('Str', 'TEST_STR');
+      iface.emit('msg000', 'TEST_STR');
     }
   }, 2000);
 
@@ -141,7 +141,7 @@ function proceed() {
 
     if (proba > 30) {
       var randomNumber = Math.round(Math.random() * 100);
-      iface.emit('Num', randomNumber);
+      iface.emit('msg001', randomNumber);
     }
   }, 3000);
 }
