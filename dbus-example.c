@@ -41,6 +41,13 @@ typedef struct
    char sigName[100];
 } dbus_session_init_params;
 
+typedef struct 
+{
+   int type;
+   void *value;
+} msgStruct_t;
+
+
 /**
  * Connect to the DBUS bus and send a broadcast signal
  */
@@ -138,6 +145,61 @@ void sendmsg001(dbus_session_init_params *dbus, char *obj, int sigvalue)
    // free the message
    dbus_message_unref(msg);
 }
+
+void sendmsg(dbus_session_init_params *dbus, char *obj, msgStruct_t *msgStruct, int msgMemberCnt)
+{
+   DBusMessage* msg;
+   DBusMessageIter args;
+   DBusConnection* conn = dbus->conn;
+   dbus_uint32_t serial = 0;
+   char buf[1000];
+   char* pBuf = buf;
+
+   // create a signal & check for errors
+   msg = dbus_message_new_signal(obj, // object name of the signal
+                                 dbus->iface, // interface name of the signal
+                                 SIGNAL_SIGNAL0); // name of the signal
+   if (NULL == msg)
+   {
+      fprintf(stderr, "Message Null\n");
+      exit(1);
+   }
+
+   // append arguments onto signal
+   dbus_message_iter_init_append(msg, &args);
+
+   for(int i=0;i<msgMemberCnt;i++)
+   {
+      if(msgStruct[i].type == DBUS_TYPE_STRING)
+      {
+         if (!dbus_message_iter_append_basic(&args, msgStruct[i].type, &msgStruct[i].value)) {
+            fprintf(stderr, "Out Of Memory!\n");
+            exit(1);
+         }
+      }
+      else
+      {
+         if (!dbus_message_iter_append_basic(&args, msgStruct[i].type, msgStruct[i].value)) {
+            fprintf(stderr, "Out Of Memory!\n");
+            exit(1);
+         }
+      }
+   }
+
+   // send the message and flush the connection
+   if (!dbus_connection_send(conn, msg, &serial)) {
+      fprintf(stderr, "Out Of Memory!\n");
+      exit(1);
+   }
+   dbus_connection_flush(conn);
+   printf("Signal Sent with value [ %s ] (path:%s, iface:%s, msg:%s)\n", buf, 
+   dbus_message_get_path(msg), dbus_message_get_interface(msg), 
+   dbus_message_get_member(msg));
+
+   // free the message
+   dbus_message_unref(msg);
+}
+
 
 
 /**
@@ -534,6 +596,13 @@ int main(int argc, char** argv)
    dbus_session_init_params dbus1_send = (dbus_session_init_params){{0}, NULL, SIGNAL_IFACE1, SIGNAL_SOURCE1};
    dbus_session_init_params dbus1_recv = (dbus_session_init_params){{0}, NULL, SIGNAL_IFACE1, SIGNAL_SINK1};
 
+
+   int tmpNum = 234;
+   msgStruct_t msg003[3] = { (msgStruct_t){DBUS_TYPE_STRING, "asdf"}, 
+                             (msgStruct_t){DBUS_TYPE_INT32, &tmpNum}, 
+                             (msgStruct_t){DBUS_TYPE_STRING, "TEST!!!"} 
+                           };
+
    char* param = "no param";
    if (4 <= argc && NULL != argv[3]) param = argv[3];
    else if (3 <= argc && NULL != argv[2]) param = argv[2];
@@ -554,6 +623,7 @@ int main(int argc, char** argv)
          {
             dbusInit(&dbus0_send);
             sendmsg000(&dbus0_send , SIGNAL_OBJ0, param);
+            sendmsg(&dbus0_send , SIGNAL_OBJ0, msg003, 3);
             //sendmsg000(&dbus0_send , SIGNAL_OBJ1, param);
          }
          else if(atoi(argv[1]) == 1)
